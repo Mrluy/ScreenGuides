@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
+using System.Windows.Threading;
 using ScreenGuides.Controls;
 using ScreenGuides.Models;
 using ScreenGuides.Services;
@@ -20,6 +21,7 @@ public sealed class GuideLineWindow : Window
     private readonly GuideLine _guide;
     private readonly GuideLineElement _element;
     private bool _isDragging;
+    private bool _isPendingRightClickDelete;
     private Point _dragStartScreen;
     private double _dragStartPosition;
     private double _previewPosition;
@@ -49,6 +51,7 @@ public sealed class GuideLineWindow : Window
         MouseLeftButtonUp += GuideLineWindow_MouseLeftButtonUp;
         MouseMove += GuideLineWindow_MouseMove;
         MouseRightButtonDown += GuideLineWindow_MouseRightButtonDown;
+        MouseRightButtonUp += GuideLineWindow_MouseRightButtonUp;
 
         _state.PropertyChanged += State_PropertyChanged;
         _guide.PropertyChanged += Guide_PropertyChanged;
@@ -174,8 +177,25 @@ public sealed class GuideLineWindow : Window
             return;
         }
 
-        _state.RemoveGuide(_guide);
+        _isPendingRightClickDelete = true;
+        CaptureMouse();
         e.Handled = true;
+    }
+
+    private void GuideLineWindow_MouseRightButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (!_isPendingRightClickDelete)
+        {
+            return;
+        }
+
+        _isPendingRightClickDelete = false;
+        ReleaseMouseCapture();
+        e.Handled = true;
+
+        Dispatcher.BeginInvoke(
+            () => _state.RemoveGuide(_guide),
+            DispatcherPriority.Background);
     }
 
     private void PreviewMoveGuide(double requestedPosition)
