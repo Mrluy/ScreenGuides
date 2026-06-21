@@ -98,7 +98,7 @@ public partial class App : System.Windows.Application
         _trayIcon = new Forms.NotifyIcon
         {
             Icon = _trayIconImage,
-            Text = "屏幕辅助线工具",
+            Text = "屏幕辅助线工具 v0.1.0",
             ContextMenuStrip = menu,
             Visible = true
         };

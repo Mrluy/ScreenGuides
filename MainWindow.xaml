@@ -413,6 +413,10 @@
                                Margin="0,4,0,0"
                                FontSize="13"
                                Foreground="{StaticResource TextMuted}" />
+                    <TextBlock Text="v0.1.0 测试版"
+                               Margin="0,6,0,0"
+                               FontSize="12"
+                               Foreground="{StaticResource Accent}" />
                 </StackPanel>
                 <Button Grid.Column="2"
                         Content="隐藏"
