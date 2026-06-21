@@ -39,13 +39,13 @@ dotnet run
 ## 发布
 
 ```powershell
-dotnet publish -c Release -r win-x64 --self-contained false /p:PublishSingleFile=true
+dotnet publish -c Release
 ```
 
-发布后的程序目录在：
+发布后的自包含单文件程序在：
 
 ```text
 bin\Release\net8.0-windows\win-x64\publish\ScreenGuides.exe
 ```
 
-WPF 运行需要 exe 旁边的几个原生渲染 DLL，移动时请保留整个 `publish` 文件夹。
+该 exe 已包含 .NET 运行时和 WPF 原生依赖，可单独复制到其他 Windows x64 电脑运行。
