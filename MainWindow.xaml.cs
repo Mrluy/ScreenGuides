@@ -9,6 +9,7 @@ using Application = System.Windows.Application;
 using Button = System.Windows.Controls.Button;
 using Rect = System.Windows.Rect;
 using TextBox = System.Windows.Controls.TextBox;
+using DrawingRectangle = System.Drawing.Rectangle;
 using Forms = System.Windows.Forms;
 
 namespace ScreenGuides;
@@ -17,6 +18,9 @@ public partial class MainWindow : Window
 {
     private const int HotKeyToggleOverlay = 100;
     private const int HotKeyToggleLock = 101;
+    private const double PreferredWindowWidth = 430;
+    private const double PreferredWindowHeight = 1100;
+    private const double StartupScreenMargin = 24;
 
     private readonly GuideState _state;
     private readonly List<ScreenOption> _screenOptions = [];
@@ -32,6 +36,7 @@ public partial class MainWindow : Window
         DataContext = _state;
 
         PopulateScreenSelector();
+        ConfigureStartupSize();
         RestorePosition();
         SelectCurrentScreen();
         SetDefaultAddPositions();
@@ -180,12 +185,14 @@ public partial class MainWindow : Window
     private void RestorePosition()
     {
         var savedBounds = new Rect(_state.ControlLeft, _state.ControlTop, Width, Height);
+        var savedScreen = FindVisibleScreen(savedBounds);
         if (!double.IsNaN(_state.ControlLeft) &&
             !double.IsNaN(_state.ControlTop) &&
-            IsVisibleOnAnyScreen(savedBounds))
+            savedScreen is not null)
         {
-            Left = _state.ControlLeft;
-            Top = _state.ControlTop;
+            var area = savedScreen.WorkingArea;
+            Left = ClampWindowCoordinate(_state.ControlLeft, area.Left + StartupScreenMargin, area.Right - Width - StartupScreenMargin);
+            Top = ClampWindowCoordinate(_state.ControlTop, area.Top + StartupScreenMargin, area.Bottom - Height - StartupScreenMargin);
             return;
         }
 
@@ -196,7 +203,37 @@ public partial class MainWindow : Window
         _state.ControlTop = Top;
     }
 
+    private void ConfigureStartupSize()
+    {
+        var workingArea = GetStartupWorkingArea();
+        var availableHeight = Math.Max(MinHeight, workingArea.Height - StartupScreenMargin * 2);
+
+        Width = PreferredWindowWidth;
+        MaxHeight = availableHeight;
+        Height = Math.Min(PreferredWindowHeight, availableHeight);
+    }
+
+    private DrawingRectangle GetStartupWorkingArea()
+    {
+        if (!double.IsNaN(_state.ControlLeft) && !double.IsNaN(_state.ControlTop))
+        {
+            var savedBounds = new Rect(_state.ControlLeft, _state.ControlTop, PreferredWindowWidth, PreferredWindowHeight);
+            var savedScreen = FindVisibleScreen(savedBounds);
+            if (savedScreen is not null)
+            {
+                return savedScreen.WorkingArea;
+            }
+        }
+
+        return Forms.Screen.PrimaryScreen?.WorkingArea ?? Forms.Screen.AllScreens[0].WorkingArea;
+    }
+
     private static bool IsVisibleOnAnyScreen(Rect windowBounds)
+    {
+        return FindVisibleScreen(windowBounds) is not null;
+    }
+
+    private static Forms.Screen? FindVisibleScreen(Rect windowBounds)
     {
         foreach (var screen in Forms.Screen.AllScreens)
         {
@@ -206,11 +243,16 @@ public partial class MainWindow : Window
 
             if (!intersection.IsEmpty && intersection.Width >= 160 && intersection.Height >= 120)
             {
-                return true;
+                return screen;
             }
         }
 
-        return false;
+        return null;
+    }
+
+    private static double ClampWindowCoordinate(double value, double min, double max)
+    {
+        return max < min ? min : Math.Clamp(value, min, max);
     }
 
     private void SetDefaultAddPositions()
