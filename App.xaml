@@ -1,0 +1,11 @@
+<Application x:Class="ScreenGuides.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <Application.Resources>
+        <SolidColorBrush x:Key="PanelBackgroundBrush" Color="#242932" />
+        <SolidColorBrush x:Key="PanelBorderBrush" Color="#3C4654" />
+        <SolidColorBrush x:Key="PanelTextBrush" Color="#F2F5F8" />
+        <SolidColorBrush x:Key="MutedTextBrush" Color="#AAB4C0" />
+        <SolidColorBrush x:Key="AccentBrush" Color="#00C7D9" />
+    </Application.Resources>
+</Application>
