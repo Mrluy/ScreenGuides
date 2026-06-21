@@ -1,14 +1,13 @@
-using System.Globalization;
 using System.ComponentModel;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Interop;
 using ScreenGuides.Models;
 using ScreenGuides.Services;
+using ScreenGuides.Windows;
 using Application = System.Windows.Application;
 using Button = System.Windows.Controls.Button;
 using Rect = System.Windows.Rect;
-using TextBox = System.Windows.Controls.TextBox;
 using DrawingRectangle = System.Drawing.Rectangle;
 using Forms = System.Windows.Forms;
 
@@ -27,6 +26,7 @@ public partial class MainWindow : Window
     private HwndSource? _source;
     private bool _isUpdatingScreenSelection;
     private bool _hasUserSelectedScreen;
+    private PlacementWindow? _placementWindow;
 
     public MainWindow(GuideState state)
     {
@@ -41,6 +41,7 @@ public partial class MainWindow : Window
         SelectCurrentScreen();
         SetDefaultAddPositions();
 
+        _state.PropertyChanged += State_PropertyChanged;
         SourceInitialized += MainWindow_SourceInitialized;
         LocationChanged += MainWindow_LocationChanged;
         Closed += MainWindow_Closed;
@@ -51,10 +52,12 @@ public partial class MainWindow : Window
         if (Application.Current is App { IsShuttingDown: false })
         {
             e.Cancel = true;
+            CancelGuidePlacement("已取消放置参考线。");
             Hide();
             return;
         }
 
+        _placementWindow?.Close();
         base.OnClosing(e);
     }
 
@@ -84,18 +87,28 @@ public partial class MainWindow : Window
 
     private void MainWindow_Closed(object? sender, EventArgs e)
     {
+        _state.PropertyChanged -= State_PropertyChanged;
         UnregisterHotKeys();
         _source?.RemoveHook(WndProc);
     }
 
+    private void State_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName == nameof(GuideState.SpanAcrossScreensForNewGuides) &&
+            _placementWindow is null)
+        {
+            SetDefaultAddPositions();
+        }
+    }
+
     private void AddVertical_Click(object sender, RoutedEventArgs e)
     {
-        AddGuideFromInput(GuideOrientation.Vertical, VerticalPositionBox);
+        BeginGuidePlacement(GuideOrientation.Vertical);
     }
 
     private void AddHorizontal_Click(object sender, RoutedEventArgs e)
     {
-        AddGuideFromInput(GuideOrientation.Horizontal, HorizontalPositionBox);
+        BeginGuidePlacement(GuideOrientation.Horizontal);
     }
 
     private void AddCenterCross_Click(object sender, RoutedEventArgs e)
@@ -109,8 +122,6 @@ public partial class MainWindow : Window
         var verticalGuide = AddScopedGuide(GuideOrientation.Vertical, centerX, screen);
         var horizontalGuide = AddScopedGuide(GuideOrientation.Horizontal, centerY, screen);
 
-        VerticalPositionBox.Text = verticalGuide.RelativePosition.ToString("0.#", CultureInfo.CurrentCulture);
-        HorizontalPositionBox.Text = horizontalGuide.RelativePosition.ToString("0.#", CultureInfo.CurrentCulture);
         AddStatusText.Text = $"已在 {screen.DisplayName} 添加居中十字：X {verticalGuide.RelativePosition:0.#}，Y {horizontalGuide.RelativePosition:0.#}{GetSpanStatusText(verticalGuide)}";
     }
 
@@ -133,6 +144,7 @@ public partial class MainWindow : Window
 
     private void HidePanel_Click(object sender, RoutedEventArgs e)
     {
+        CancelGuidePlacement("已取消放置参考线。");
         Hide();
     }
 
@@ -152,18 +164,6 @@ public partial class MainWindow : Window
         _hasUserSelectedScreen = false;
         SelectCurrentScreen();
         SetDefaultAddPositions();
-    }
-
-    private void PickMouseCoordinate_Click(object sender, RoutedEventArgs e)
-    {
-        var screen = GetSelectedScreenOption();
-        var cursor = NativeMethods.GetCursorScreenPosition();
-        var relativeX = Math.Clamp(cursor.X - screen.Bounds.Left, 0, screen.Bounds.Width);
-        var relativeY = Math.Clamp(cursor.Y - screen.Bounds.Top, 0, screen.Bounds.Height);
-
-        VerticalPositionBox.Text = relativeX.ToString("0.#", CultureInfo.CurrentCulture);
-        HorizontalPositionBox.Text = relativeY.ToString("0.#", CultureInfo.CurrentCulture);
-        AddStatusText.Text = $"已拾取鼠标坐标：X {relativeX:0.#}，Y {relativeY:0.#}。";
     }
 
     private void Exit_Click(object sender, RoutedEventArgs e)
@@ -258,47 +258,58 @@ public partial class MainWindow : Window
     private void SetDefaultAddPositions()
     {
         var screen = GetSelectedScreenOption();
-        var bounds = screen.Bounds;
-        VerticalPositionBox.Text = Math.Round(bounds.Width / 2).ToString(CultureInfo.CurrentCulture);
-        HorizontalPositionBox.Text = Math.Round(bounds.Height / 2).ToString(CultureInfo.CurrentCulture);
         ScreenStatusText.Text = screen.CoordinateRangeText;
         AddStatusText.Text = _state.SpanAcrossScreensForNewGuides
-            ? "输入目标屏幕内坐标后添加参考线；新线会跨越所有屏幕。"
-            : "输入目标屏幕内坐标后添加参考线；新线只显示在目标屏幕内。";
+            ? "点击竖线或横线后，在目标屏幕上点击放置；新线会跨越所有屏幕。"
+            : "点击竖线或横线后，在目标屏幕上点击放置；新线只显示在目标屏幕内。";
     }
 
-    private void AddGuideFromInput(GuideOrientation orientation, TextBox input)
+    private void BeginGuidePlacement(GuideOrientation orientation)
     {
-        if (!TryParseCoordinate(input.Text, out var value))
+        EnsureOverlayVisible();
+        CancelGuidePlacement(null);
+
+        var screen = GetSelectedScreenOption();
+        var placementText = orientation == GuideOrientation.Vertical ? "竖线" : "横线";
+
+        _placementWindow = new PlacementWindow(
+            orientation,
+            screen.Bounds,
+            screen.DisplayName,
+            absolutePosition =>
+            {
+                var guide = AddScopedGuide(orientation, absolutePosition, screen);
+                _placementWindow = null;
+                AddStatusText.Text = orientation == GuideOrientation.Vertical
+                    ? $"已在 {screen.DisplayName} 添加固定竖线：X {guide.RelativePosition:0.#}{GetSpanStatusText(guide)}"
+                    : $"已在 {screen.DisplayName} 添加固定横线：Y {guide.RelativePosition:0.#}{GetSpanStatusText(guide)}";
+            },
+            () =>
+            {
+                _placementWindow = null;
+                AddStatusText.Text = "已取消放置参考线。";
+            });
+
+        AddStatusText.Text = $"正在放置{placementText}：请在 {screen.DisplayName} 上点击位置，Esc 或右键取消。";
+        _placementWindow.Show();
+        _placementWindow.Activate();
+    }
+
+    private void CancelGuidePlacement(string? statusText)
+    {
+        if (_placementWindow is null)
         {
-            AddStatusText.Text = "请输入有效数字坐标。";
-            input.Focus();
-            input.SelectAll();
             return;
         }
 
-        EnsureOverlayVisible();
+        var window = _placementWindow;
+        _placementWindow = null;
+        window.CloseWithoutCallback();
 
-        var screen = GetSelectedScreenOption();
-        var bounds = screen.Bounds;
-        var clamped = orientation == GuideOrientation.Vertical
-            ? Math.Clamp(value, 0, bounds.Width)
-            : Math.Clamp(value, 0, bounds.Height);
-        var absolutePosition = orientation == GuideOrientation.Vertical
-            ? bounds.Left + clamped
-            : bounds.Top + clamped;
-
-        var guide = AddScopedGuide(orientation, absolutePosition, screen);
-        input.Text = guide.RelativePosition.ToString("0.#", CultureInfo.CurrentCulture);
-        AddStatusText.Text = orientation == GuideOrientation.Vertical
-            ? $"已在 {screen.DisplayName} 添加固定竖线：X {guide.RelativePosition:0.#}{GetSpanStatusText(guide)}"
-            : $"已在 {screen.DisplayName} 添加固定横线：Y {guide.RelativePosition:0.#}{GetSpanStatusText(guide)}";
-    }
-
-    private static bool TryParseCoordinate(string text, out double value)
-    {
-        return double.TryParse(text, NumberStyles.Float, CultureInfo.CurrentCulture, out value) ||
-               double.TryParse(text, NumberStyles.Float, CultureInfo.InvariantCulture, out value);
+        if (!string.IsNullOrWhiteSpace(statusText))
+        {
+            AddStatusText.Text = statusText;
+        }
     }
 
     private void PopulateScreenSelector()
@@ -388,15 +399,6 @@ public partial class MainWindow : Window
     private static string GetSpanStatusText(GuideLine guide)
     {
         return guide.SpanAcrossScreens ? "，跨越所有屏幕。" : "，仅限目标屏幕。";
-    }
-
-    private Rect GetVirtualScreenBounds()
-    {
-        return new Rect(
-            SystemParameters.VirtualScreenLeft,
-            SystemParameters.VirtualScreenTop,
-            SystemParameters.VirtualScreenWidth,
-            SystemParameters.VirtualScreenHeight);
     }
 
     private void RegisterHotKeys()
