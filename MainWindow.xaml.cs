@@ -149,6 +149,18 @@ public partial class MainWindow : Window
         SetDefaultAddPositions();
     }
 
+    private void PickMouseCoordinate_Click(object sender, RoutedEventArgs e)
+    {
+        var screen = GetSelectedScreenOption();
+        var cursor = NativeMethods.GetCursorScreenPosition();
+        var relativeX = Math.Clamp(cursor.X - screen.Bounds.Left, 0, screen.Bounds.Width);
+        var relativeY = Math.Clamp(cursor.Y - screen.Bounds.Top, 0, screen.Bounds.Height);
+
+        VerticalPositionBox.Text = relativeX.ToString("0.#", CultureInfo.CurrentCulture);
+        HorizontalPositionBox.Text = relativeY.ToString("0.#", CultureInfo.CurrentCulture);
+        AddStatusText.Text = $"已拾取鼠标坐标：X {relativeX:0.#}，Y {relativeY:0.#}。";
+    }
+
     private void Exit_Click(object sender, RoutedEventArgs e)
     {
         if (Application.Current is App app)
@@ -207,7 +219,7 @@ public partial class MainWindow : Window
         var bounds = screen.Bounds;
         VerticalPositionBox.Text = Math.Round(bounds.Width / 2).ToString(CultureInfo.CurrentCulture);
         HorizontalPositionBox.Text = Math.Round(bounds.Height / 2).ToString(CultureInfo.CurrentCulture);
-        ScreenStatusText.Text = $"{screen.DisplayName}，屏内坐标范围：X 0 - {bounds.Width:0}，Y 0 - {bounds.Height:0}。";
+        ScreenStatusText.Text = screen.CoordinateRangeText;
         AddStatusText.Text = _state.SpanAcrossScreensForNewGuides
             ? "输入目标屏幕内坐标后添加参考线；新线会跨越所有屏幕。"
             : "输入目标屏幕内坐标后添加参考线；新线只显示在目标屏幕内。";
@@ -256,10 +268,14 @@ public partial class MainWindow : Window
         {
             var screen = screens[index];
             var bounds = screen.Bounds;
-            var label = $"屏幕 {index + 1}{(screen.Primary ? "（主屏）" : string.Empty)}  {bounds.Width}x{bounds.Height}  ({bounds.Left},{bounds.Top})";
+            var title = $"屏幕 {index + 1}{(screen.Primary ? " · 主屏" : string.Empty)}";
+            var resolution = $"{bounds.Width} × {bounds.Height}";
+            var range = $"坐标范围  X: 0 - {bounds.Width}  Y: 0 - {bounds.Height}";
             _screenOptions.Add(new ScreenOption(
                 screen.DeviceName,
-                label,
+                title,
+                resolution,
+                range,
                 new Rect(bounds.Left, bounds.Top, bounds.Width, bounds.Height)));
         }
 
@@ -350,7 +366,7 @@ public partial class MainWindow : Window
         Register(HotKeyToggleLock, modifiers, NativeMethods.VkL, "Ctrl+Alt+L");
 
         HotkeyStatusText.Text = failures.Count == 0
-            ? "快捷键：Ctrl+Alt+G 显示/隐藏参考线，Ctrl+Alt+L 锁定/解锁鼠标穿透。解锁后可拖动固定参考线，右键删除。"
+            ? "Ctrl+Alt+G 显示/隐藏 · Ctrl+Alt+L 锁定"
             : $"部分快捷键被系统占用：{string.Join(", ", failures)}";
 
         void Register(int id, uint mod, uint key, string label)
@@ -389,5 +405,13 @@ public partial class MainWindow : Window
         return IntPtr.Zero;
     }
 
-    private sealed record ScreenOption(string DeviceName, string DisplayName, Rect Bounds);
+    private sealed record ScreenOption(
+        string DeviceName,
+        string DisplayName,
+        string ResolutionText,
+        string CoordinateRangeText,
+        Rect Bounds)
+    {
+        public string Title => DisplayName;
+    }
 }
