@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
@@ -6,6 +7,8 @@ namespace ScreenGuides.Models;
 public sealed class GuideLine : INotifyPropertyChanged
 {
     private double _position;
+
+    public const int CoordinateDecimalPlaces = 1;
 
     public Guid Id { get; init; } = Guid.NewGuid();
 
@@ -30,12 +33,13 @@ public sealed class GuideLine : INotifyPropertyChanged
         get => _position;
         set
         {
-            if (Math.Abs(_position - value) < 0.01)
+            var normalized = NormalizeCoordinate(value);
+            if (Math.Abs(_position - normalized) < 0.01)
             {
                 return;
             }
 
-            _position = value;
+            _position = normalized;
             OnPropertyChanged();
             OnPropertyChanged(nameof(DisplayName));
             OnPropertyChanged(nameof(CoordinateText));
@@ -44,8 +48,8 @@ public sealed class GuideLine : INotifyPropertyChanged
     }
 
     public string DisplayName => Orientation == GuideOrientation.Vertical
-        ? $"{ScreenName}  竖线  X {RelativePosition:0}"
-        : $"{ScreenName}  横线  Y {RelativePosition:0}";
+        ? $"{ScreenName}  竖线  X {FormatCoordinate(RelativePosition)}"
+        : $"{ScreenName}  横线  Y {FormatCoordinate(RelativePosition)}";
 
     public string OrientationText => Orientation == GuideOrientation.Vertical ? "竖线" : "横线";
 
@@ -56,8 +60,8 @@ public sealed class GuideLine : INotifyPropertyChanged
     public string SpanText => SpanAcrossScreens ? $"{ScopeText}，跨越所有屏幕" : ScopeText;
 
     public string CoordinateText => Orientation == GuideOrientation.Vertical
-        ? $"x {RelativePosition:0}"
-        : $"y {RelativePosition:0}";
+        ? $"x {FormatCoordinate(RelativePosition)}"
+        : $"y {FormatCoordinate(RelativePosition)}";
 
     public double RelativePosition
     {
@@ -68,13 +72,24 @@ public sealed class GuideLine : INotifyPropertyChanged
         {
             var max = Orientation == GuideOrientation.Vertical ? ScopeWidth : ScopeHeight;
             var clamped = max > 0 ? Math.Clamp(value, 0, max) : value;
+            var normalized = NormalizeCoordinate(clamped);
             Position = Orientation == GuideOrientation.Vertical
-                ? ScopeLeft + clamped
-                : ScopeTop + clamped;
+                ? ScopeLeft + normalized
+                : ScopeTop + normalized;
         }
     }
 
     public bool HasScope => ScopeWidth > 0 && ScopeHeight > 0;
+
+    public static double NormalizeCoordinate(double value)
+    {
+        return Math.Round(value, CoordinateDecimalPlaces, MidpointRounding.AwayFromZero);
+    }
+
+    public static string FormatCoordinate(double value)
+    {
+        return NormalizeCoordinate(value).ToString("0.0", CultureInfo.CurrentCulture);
+    }
 
     public event PropertyChangedEventHandler? PropertyChanged;
 

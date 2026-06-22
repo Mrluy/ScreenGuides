@@ -689,7 +689,7 @@
                                                    Foreground="{StaticResource TextMuted}"
                                                    VerticalAlignment="Center" />
                                         <TextBox Grid.Column="3"
-                                                 Text="{Binding RelativePosition, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.#}}"
+                                                 Text="{Binding RelativePosition, Mode=TwoWay, UpdateSourceTrigger=LostFocus, StringFormat={}{0:0.0}}"
                                                  Height="30"
                                                  Margin="0,0,10,0" />
                                         <TextBlock Grid.Column="4"

@@ -221,7 +221,9 @@ public sealed class GuideLineWindow : Window
         var min = _guide.Orientation == GuideOrientation.Vertical ? bounds.Left : bounds.Top;
         var max = _guide.Orientation == GuideOrientation.Vertical ? bounds.Right : bounds.Bottom;
         var clamped = Math.Clamp(requestedPosition, min, max);
-        return _state.SnapToInteger ? Math.Round(clamped) : clamped;
+        return _state.SnapToInteger
+            ? Math.Round(clamped, 0, MidpointRounding.AwayFromZero)
+            : GuideLine.NormalizeCoordinate(clamped);
     }
 
     private Rect GetDrawingBounds()

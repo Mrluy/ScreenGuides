@@ -174,7 +174,9 @@ public sealed class GuideState : INotifyPropertyChanged
         var guide = new GuideLine
         {
             Orientation = orientation,
-            Position = SnapToInteger ? Math.Round(position) : position,
+            Position = SnapToInteger
+                ? Math.Round(position, 0, MidpointRounding.AwayFromZero)
+                : GuideLine.NormalizeCoordinate(position),
             ScopeLeft = scopeLeft,
             ScopeTop = scopeTop,
             ScopeWidth = scopeWidth,

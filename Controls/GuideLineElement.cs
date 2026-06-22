@@ -59,8 +59,8 @@ public sealed class GuideLineElement : FrameworkElement
             : _guide.RelativePosition;
 
         return _guide.Orientation == GuideOrientation.Vertical
-            ? $"X {position:0}"
-            : $"Y {position:0}";
+            ? $"X {GuideLine.FormatCoordinate(position)}"
+            : $"Y {GuideLine.FormatCoordinate(position)}";
     }
 
     private double GetRelativePosition(double absolutePosition)

@@ -122,7 +122,7 @@ public partial class MainWindow : Window
         var verticalGuide = AddScopedGuide(GuideOrientation.Vertical, centerX, screen);
         var horizontalGuide = AddScopedGuide(GuideOrientation.Horizontal, centerY, screen);
 
-        AddStatusText.Text = $"已在 {screen.DisplayName} 添加居中十字：X {verticalGuide.RelativePosition:0.#}，Y {horizontalGuide.RelativePosition:0.#}{GetSpanStatusText(verticalGuide)}";
+        AddStatusText.Text = $"已在 {screen.DisplayName} 添加居中十字：X {GuideLine.FormatCoordinate(verticalGuide.RelativePosition)}，Y {GuideLine.FormatCoordinate(horizontalGuide.RelativePosition)}{GetSpanStatusText(verticalGuide)}";
     }
 
     private void ClearGuides_Click(object sender, RoutedEventArgs e)
@@ -281,8 +281,8 @@ public partial class MainWindow : Window
                 var guide = AddScopedGuide(orientation, absolutePosition, screen);
                 _placementWindow = null;
                 AddStatusText.Text = orientation == GuideOrientation.Vertical
-                    ? $"已在 {screen.DisplayName} 添加固定竖线：X {guide.RelativePosition:0.#}{GetSpanStatusText(guide)}"
-                    : $"已在 {screen.DisplayName} 添加固定横线：Y {guide.RelativePosition:0.#}{GetSpanStatusText(guide)}";
+                    ? $"已在 {screen.DisplayName} 添加固定竖线：X {GuideLine.FormatCoordinate(guide.RelativePosition)}{GetSpanStatusText(guide)}"
+                    : $"已在 {screen.DisplayName} 添加固定横线：Y {GuideLine.FormatCoordinate(guide.RelativePosition)}{GetSpanStatusText(guide)}";
             },
             () =>
             {
