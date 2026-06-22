@@ -419,12 +419,12 @@
                                Foreground="{StaticResource Accent}" />
                 </StackPanel>
                 <Button Grid.Column="2"
-                        Content="隐藏"
+                        Content="最小化"
                         Width="76"
                         Margin="12,4,0,0"
                         VerticalAlignment="Top"
                         Style="{StaticResource SecondaryButtonStyle}"
-                        Click="HidePanel_Click" />
+                        Click="MinimizePanel_Click" />
             </Grid>
 
             <Border Style="{StaticResource CardStyle}">

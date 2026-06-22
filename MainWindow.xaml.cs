@@ -49,15 +49,7 @@ public partial class MainWindow : Window
 
     protected override void OnClosing(CancelEventArgs e)
     {
-        if (Application.Current is App { IsShuttingDown: false })
-        {
-            e.Cancel = true;
-            CancelGuidePlacement("已取消放置参考线。");
-            Hide();
-            return;
-        }
-
-        _placementWindow?.Close();
+        CancelGuidePlacement(null);
         base.OnClosing(e);
     }
 
@@ -142,10 +134,10 @@ public partial class MainWindow : Window
         }
     }
 
-    private void HidePanel_Click(object sender, RoutedEventArgs e)
+    private void MinimizePanel_Click(object sender, RoutedEventArgs e)
     {
-        CancelGuidePlacement("已取消放置参考线。");
-        Hide();
+        CancelGuidePlacement(null);
+        WindowState = WindowState.Minimized;
     }
 
     private void ScreenSelector_SelectionChanged(object sender, SelectionChangedEventArgs e)
